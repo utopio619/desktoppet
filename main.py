@@ -1,5 +1,5 @@
 """
-桌面宠物 —— 最终版（增加再见气泡与延迟退出）
+桌面宠物 —— 最终版（增加再见气泡与延迟退出 + 托盘头像支持）
 """
 
 import sys
@@ -24,7 +24,7 @@ except ImportError:
 # ============================================================
 IMAGE_DIR = Path(__file__).resolve().parent
 TEXT_FILE = IMAGE_DIR / "texts.txt"
-BYE_FILE = IMAGE_DIR / "bye.txt"  # 新增：告别文本
+BYE_FILE = IMAGE_DIR / "bye.txt"
 
 MAX_SIZE = 400
 USE_MASK = False
@@ -50,7 +50,6 @@ def _event_global_pos(event):
 
 
 def _read_random_line(filepath):
-    """通用的读取随机行函数"""
     if not filepath.exists():
         return f"找不到 {filepath.name} 文件哦~"
     try:
@@ -201,7 +200,17 @@ class PetWindow(QWidget):
 
     def _setup_tray(self):
         self.tray_icon = QSystemTrayIcon(self)
-        self.tray_icon.setIcon(QIcon(str(IMAGE_DIR / STATE_IMAGES[PetState.SIT])))
+
+        # ========== 修改：优先使用 head.png，没有则用默认立绘 ==========
+        head_path = IMAGE_DIR / "head.png"
+        if head_path.exists():
+            icon_path = head_path
+        else:
+            icon_path = IMAGE_DIR / STATE_IMAGES[PetState.SIT]
+
+        self.tray_icon.setIcon(QIcon(str(icon_path)))
+        # ============================================================
+
         self.tray_icon.setToolTip("桌面宠物")
         self.tray_icon.setContextMenu(self.menu)
         self.tray_icon.activated.connect(self._on_tray_activated)
@@ -229,23 +238,15 @@ class PetWindow(QWidget):
         self.show()
         self.move(pos)
 
-    # ========== 修改：再见气泡与延迟退出 ==========
     def _quit_app(self):
-        # 1. 停止倒计时和眨眼，节省资源
         if hasattr(self, 'countdown_timer'):
             self.countdown_timer.stop()
         self._stop_blink()
         self.blink_trigger_timer.stop()
 
-        # 2. 隐藏托盘图标
         self.tray_icon.hide()
-
-        # 3. 弹出告别气泡（停留 2.5 秒）
         self.show_bubble(_read_random_line(BYE_FILE), duration=2500)
-
-        # 4. 延迟 2.5 秒后真正退出程序
         QTimer.singleShot(2500, QApplication.quit)
-    # ============================================
 
     def show_menu(self, global_pos):
         self.menu.popup(global_pos)
